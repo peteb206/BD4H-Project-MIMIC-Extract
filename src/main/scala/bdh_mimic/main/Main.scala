@@ -4,8 +4,7 @@ import com.google.cloud.spark.bigquery._
 import bdh_mimic.model.{PatientStatic, queryResult_test}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
+import org.apache.spark.sql.functions.to_timestamp
 
 //Plan create jar files from project and load into gcp dataproc to run job and write table out to bigquery
 //gcp https://www.youtube.com/watch?v=XriOHFKrzLM
@@ -129,9 +128,12 @@ object Main {
       .option("table", "bdh6250-380417.MIMIC_Extract.patients_static")
       .load()
       .filter(s"(ICUDur BETWEEN $icuDurMin and $icuDurMax) AND (visit = $visit) AND (age >= $age)")
-      .as[PatientStatic].rdd
-
-    //TO-DO work through how to get Timestamp
+      .withColumn("ADMITTIME", to_timestamp($"ADMITTIME"))
+      .withColumn("DISCHTIME", to_timestamp($"DISCHTIME"))
+      .withColumn("INTIME", to_timestamp($"INTIME"))
+      .withColumn("OUTTIME", to_timestamp($"OUTTIME"))
+      .as[PatientStatic]
+      .rdd
 
     //For Paper (Site): Our pipeline
     //presents values for static variables as they originally appear in
