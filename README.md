@@ -15,3 +15,4 @@ Scala project to reproduce the original MIMIC Extract data pipeline using Scala/
 4. Choose your Google account with credentials to the project<br>
 5. Run the following command from the command line:<br><code>\<path to Google Cloud CLI installation\>/google-cloud-sdk/bin/gcloud config set project bdh6250-380417</code>
 6. Run <code>src/main/scala/bdh_mimic/main/Main.scala</code> from this project.
+## bigQuery 

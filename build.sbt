@@ -9,7 +9,7 @@ lazy val root = (project in file("."))
 
 lazy val launchSettings = Seq(
   // set the main class for 'sbt run'
-  mainClass in(Compile, run) := Some("bdh_mimic.main.Main")
+  mainClass in (Compile, run) := Some("bdh_mimic.main.Main")
 )
 
 libraryDependencies ++= Seq(
