@@ -11,6 +11,8 @@ object tutorial_sparkbq {
   def bq_test (spark: SparkSession): RDD[queryResult_test] = {
     //def function in object
 
+    //Bigquery: https://sidshome.wordpress.com/2022/06/19/query-google-biqquery-from-a-scala-console-app/
+
     //gcloud auth application-default login
     //gcloud config set project <Project-Name>
 
