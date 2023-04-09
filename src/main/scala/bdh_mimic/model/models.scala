@@ -11,3 +11,7 @@ case class PatientStatic(SUBJECT_ID: String, HADM_ID: String, DOB: String, GENDE
                          INSURANCE: String, FIRST_CAREUNIT: String, age: Double, age_adjusted: Double,
                          ICUDur: BigInteger, visit: BigInteger)
 
+case class Events(SUBJECT_ID: String, HADM_ID: String,ICUSTAY_ID: String,  CHARTTIME: Timestamp,
+                       ITEMID: String, VALUE: String, VALUEUOM: String)
+
+case class Items(ITEMID: String, LABEL: String, DBSOURCE: String, LINKSTO: String, CATEGORY: String, UNITNAME: String)

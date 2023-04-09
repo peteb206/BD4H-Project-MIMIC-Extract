@@ -15,4 +15,7 @@ Scala project to reproduce the original MIMIC Extract data pipeline using Scala/
 4. Choose your Google account with credentials to the project<br>
 5. Run the following command from the command line:<br><code>\<path to Google Cloud CLI installation\>/google-cloud-sdk/bin/gcloud config set project bdh6250-380417</code>
 6. Run <code>src/main/scala/bdh_mimic/main/Main.scala</code> from this project.
-## bigQuery 
+## GCP bigQuery 
+1. Request access to the bigQuery database provided by Physionet (requires credentialed access): https://physionet.org/content/mimiciii/1.4/
+2. Next setup billing for the GCP project outlined in step one under the Instructions section
+3. This will give access to the database used in this pipeline named MIMIC_Extract with corresponding queries

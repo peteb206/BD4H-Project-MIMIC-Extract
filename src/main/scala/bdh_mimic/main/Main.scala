@@ -1,7 +1,8 @@
 package bdh_mimic.main
 
 import com.google.cloud.spark.bigquery._
-import bdh_mimic.model.{PatientStatic, queryResult_test}
+import bdh_mimic.model.{PatientStatic, Events, Items, queryResult_test}
+import bdh_mimic.tutorial_sparkbq.tutorial_sparkbq //import package and object for fnc
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.to_timestamp
@@ -20,59 +21,23 @@ object Main {
     val spark = SparkSession.builder.appName("simp").config("spark.master", "local").getOrCreate()
     import spark.implicits._
 
+    //Tutorial Run
+//    val result_tut: RDD[queryResult_test] = tutorial_sparkbq.bq_test(spark)
+//    result_tut.take(1).foreach(println)
+
+    //Get Static Patient Data
     val patients_static: RDD[PatientStatic] = get_patients_static_variables(spark)
 
     patients_static.take(1).foreach(println)
 
-    //Spark bigQuery Notes/ Examples
-    //  lets query and convert out bigQuery table to an RDD
-    //    val df = spark.read.option("bdh6250-380417", "264814785831").bigquery("bdh6250-380417.mimic_test.query_result")
-    ////    df.show()
-    //
-    //    val resultsRDD: RDD[queryResult] = df.as[queryResult].rdd
-    //    resultsRDD.take(1).foreach(println)
-    //
-    ////    Some Fun
-    //    val sum_stats = resultsRDD.map(x => (x.SUBJECT_ID,1.0)).reduceByKey(_+_)
-    //    sum_stats.take(1).foreach(println)
+//    patients_static.cache()
 
-    //Inspect a table
-    //    val dop = spark.read.option("bdh6250-380417", "264814785831").bigquery("bdh6250-380417.MIMIC_Extract.icu_dopamine_dur")
+    //Get Chart Events Data
+    val chart: RDD[Events] = get_agg_events(spark)
 
-    //    dop.show()
-    //
-    //    //Inspect Schema
-    //    dop.printSchema()
+    chart.take(1).foreach(println)
 
-    //RDD //ERROR
-    //    val dopRDD: RDD[dop_dur] = dop.as[dop_dur].rdd
-    //    dopRDD.take(1).foreach(println)
-
-    //load dataset as RDD
-//    val test_load = (spark.read.format("bigquery")
-//      .option("table", "bdh6250-380417.MIMIC_Extract.icu_dopamine_dur")
-//      .load()
-//      .cache())
-//
-//    //TO_DO
-//    //Will load in Row format need to figure out how to convert prior to sql
-//    //Need to import rest of the tables into RDD and get dosage time maybe easier in bigQuery
-//
-//    test_load.createOrReplaceTempView("dop_dur")
-//
-//    //Find Schema in Console: bq show --format=prettyjson bdh6250-380417:MIMIC_Extract.icu_dopamine_dur
-//    val test_loaddf = spark.sql(
-//      "SELECT * FROM dop_dur LIMIT 10")
-//
-//    test_loaddf.show()
-
-    //if you pack in object faster to debug
-    //cmd >
-    //sbt
-    //cmd >
-    //compile
-    //cmd >
-    //runMain --figure out
+    //So far have chart data loaded need to perform hourly agg on this
 
   }
   def get_patients_static_variables(spark: SparkSession, age: Int = 15, visit: Int = 1,
@@ -141,34 +106,74 @@ object Main {
     //age for patients older than eighty-nine is masked as 300 in MIMICIII for privacy reasons,
     // and our pipeline preserves this
 
-    //OLD CODE
-
-//    val admission: RDD[Admission] = spark.read.format("bigquery")
-//      .option("table", "bdh6250-380417.MIMIC_Extract.icu_admission_sorted1")
-//      .load()
-//      .filter(s"(ICUDur BETWEEN $icuDurMin and $icuDurMax) AND (visit_id = $visit)")
-//      .as[Admission].rdd
-//
-//    val patient: RDD[Patient] = spark.read.format("bigquery")
-//      .option("table", "bdh6250-380417.MIMIC_Extract.patient_age")
-//      .load()
-//      .filter(s"age >= $age")
-//      .as[Patient].rdd
-
-    //    val patient: RDD[Patient] = p1.as[Patient].rdd
-
-    //https://towardsdatascience.com/best-practices-for-caching-in-spark-sql-b22fb0f02d34
-
-    //    admission.cache()
-    //    patient.cache()
-
-    //    val admin_filter = patient.map(x => x.HADM_ID).collect.toSeq
-    //
-    //    val patient_filter = patient.filter(x => admin_filter.contains(x.HADM_ID))
-
-    //    patient_filter.take(1).foreach(println)
-
-
     patient_stat
   }
+
+  def get_agg_events(spark: SparkSession): RDD[Events] = {
+    import spark.implicits._
+    //TO-DO
+    //Define function more as we build it out
+
+    //queries used
+    //query icustay_chartevents, table icustay_charevents
+    //query icustay_labevents, table icustay_labevents
+
+    //icustay_chartevents
+    //Columns
+
+    //ICU Table
+    //Subject_ID
+    //HADM_ID
+    //ICUSTAY_ID
+
+    //Chart Events
+    //CHARTTIME
+    //ITEM_ID
+    //VALUE
+    //VALUEUOM
+
+    val icu_chart: RDD[Events] = spark.read.format("bigquery")
+      .option("table", "bdh6250-380417.MIMIC_Extract.icustay_chartevents")
+      .load()
+      .withColumn("CHARTTIME", to_timestamp($"CHARTTIME"))
+      .as[Events]
+      .rdd
+
+    //Filtered to Chart Time in ICU Stay & No Errors & ValueNUM not null
+
+    //icustay_labevents
+    //Columns
+
+    //ICU Table
+    //Subject_ID
+    //HADM_ID
+    //ICUSTAY_ID
+
+    //Lab Events
+    //CHARTTIME
+    //ITEM_ID
+    //VALUE
+    //VALUEUOM
+
+    val icu_lab: RDD[Events] = spark.read.format("bigquery")
+      .option("table", "bdh6250-380417.MIMIC_Extract.icustay_labevents")
+      .load()
+      .withColumn("CHARTTIME", to_timestamp($"CHARTTIME"))
+      .as[Events]
+      .rdd
+
+    //Filtered to Chart Time in 6 hour interval of Stay &  ValueNUM > 0
+
+    //items
+    //Item name table
+
+    val items: RDD[Items] = spark.read.format("bigquery")
+      .option("table", "bdh6250-380417.MIMIC_Extract.items")
+      .load()
+      .as[Items]
+      .rdd
+
+    icu_chart
+  }
+
 }
