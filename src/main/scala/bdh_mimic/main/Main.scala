@@ -4,6 +4,7 @@ import com.google.cloud.spark.bigquery._
 import bdh_mimic.model.{PatientStatic, Events, Items, queryResult_test}
 import bdh_mimic.tutorial_sparkbq.tutorial_sparkbq //import package and object for fnc
 import bdh_mimic.dataload.dataload
+import bdh_mimic.utils.utils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.to_timestamp
@@ -32,9 +33,15 @@ object Main {
 //    patients_static.cache()
 
     //Get Chart Events Data
-    val chart: RDD[Events] = dataload.get_agg_events(spark)
+    val (icu_chart, icu_lab, items) = dataload.get_icu_events(spark)
 
-    chart.take(1).foreach(println)
+//    icu_chart.take(1).foreach(println)
+//
+//    icu_lab.take(1).foreach(println)
+//
+//    items.take(1).foreach(println)
+
+    val new_test = utils.unit_conversion(icu_chart, items)
 
     //So far have chart data loaded (item and lab dataloaded as well just not returned) need to perform hourly agg on this
 

@@ -76,7 +76,7 @@ object dataload {
     patient_stat
   }
 
-  def get_agg_events(spark: SparkSession): RDD[Events] = {
+  def get_icu_events(spark: SparkSession): (RDD[Events], RDD[Events], RDD[Items]) = {
     import spark.implicits._
     //TO-DO
     //Define function more as we build it out
@@ -140,7 +140,7 @@ object dataload {
       .as[Items]
       .rdd
 
-    icu_chart
+    (icu_chart, icu_lab, items)
   }
 
 }
