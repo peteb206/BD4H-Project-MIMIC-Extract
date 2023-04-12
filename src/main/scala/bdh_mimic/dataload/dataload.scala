@@ -76,10 +76,8 @@ object dataload {
     patient_stat
   }
 
-  def get_icu_events(spark: SparkSession): (RDD[Events], RDD[Events], RDD[Items]) = {
+  def get_icu_events(spark: SparkSession): (RDD[Events], RDD[Events]) = {
     import spark.implicits._
-    //TO-DO
-    //Define function more as we build it out
 
     //queries used
     //query icustay_chartevents, table icustay_charevents
@@ -103,6 +101,7 @@ object dataload {
       .option("table", "bdh6250-380417.MIMIC_Extract.icustay_chartevents")
       .load()
       .withColumn("CHARTTIME", to_timestamp($"CHARTTIME"))
+      .withColumn("VALUE", $"VALUE".cast("Double"))
       .as[Events]
       .rdd
 
@@ -126,12 +125,19 @@ object dataload {
       .option("table", "bdh6250-380417.MIMIC_Extract.icustay_labevents")
       .load()
       .withColumn("CHARTTIME", to_timestamp($"CHARTTIME"))
+      .withColumn("VALUE", $"VALUE".cast("Double"))
       .as[Events]
       .rdd
 
     //Filtered to Chart Time in 6 hour interval of Stay &  ValueNUM > 0
 
-    //items
+    (icu_chart, icu_lab)
+  }
+
+  def get_items(spark: SparkSession): RDD[Items] = {
+
+    import spark.implicits._
+    //items, query items
     //Item name table
 
     val items: RDD[Items] = spark.read.format("bigquery")
@@ -140,7 +146,7 @@ object dataload {
       .as[Items]
       .rdd
 
-    (icu_chart, icu_lab, items)
+    items
   }
 
 }

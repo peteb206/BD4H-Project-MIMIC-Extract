@@ -26,22 +26,23 @@ object Main {
 //    result_tut.take(1).foreach(println)
 
     //Get Static Patient Data
-    val patients_static: RDD[PatientStatic] = dataload.get_patients_static_variables(spark)
-
-    patients_static.take(1).foreach(println)
-
+//    val patients_static: RDD[PatientStatic] = dataload.get_patients_static_variables(spark)
+//
+//    patients_static.take(1).foreach(println)
+//
 //    patients_static.cache()
-
-    //Get Chart Events Data
-    val (icu_chart, icu_lab, items) = dataload.get_icu_events(spark)
-
+//
+//    Get Chart Events Data
+    val (icu_chart, icu_lab) = dataload.get_icu_events(spark)
+//
 //    icu_chart.take(1).foreach(println)
 //
 //    icu_lab.take(1).foreach(println)
-//
-//    items.take(1).foreach(println)
 
-    val new_test = utils.unit_conversion(icu_chart, items)
+    //Remove Outliers
+    val items = dataload.get_items(spark)
+
+    val rrd_test = utils.outlier_removal(spark, items, icu_chart)
 
     //So far have chart data loaded (item and lab dataloaded as well just not returned) need to perform hourly agg on this
 
