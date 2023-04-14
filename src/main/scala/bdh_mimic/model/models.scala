@@ -19,4 +19,4 @@ case class Items(ITEMID: String, LABEL: String, DBSOURCE: String, LINKSTO: Strin
 case class ValRange(LEVEL2: String, OUTLIER_LOW: Double, VALID_LOW: Double, IMPUTE: Double,
                     VALID_HIGH: Double, OUTLIER_HIGH: Double)
 
-case class ItemMap(ITEMID: String, VALID_LOW: Double, VALID_HIGH: Double, IMPUTE: Double)
+//case class ItemMap(ITEMID: String, VALID_LOW: Float, VALID_HIGH: Float, IMPUTE: Float)

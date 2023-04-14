@@ -26,7 +26,7 @@ object Main {
 //    result_tut.take(1).foreach(println)
 
     //Get Static Patient Data
-//    val patients_static: RDD[PatientStatic] = dataload.get_patients_static_variables(spark)
+    val patients_static: RDD[PatientStatic] = dataload.get_patients_static_variables(spark)
 //
 //    patients_static.take(1).foreach(println)
 //
@@ -42,7 +42,7 @@ object Main {
     //Remove Outliers
     val items = dataload.get_items(spark)
 
-    val rrd_test = utils.outlier_removal(spark, items, icu_chart)
+    val icu_chart_impute = utils.outlier_removal(spark, items, icu_chart)
 
     //So far have chart data loaded (item and lab dataloaded as well just not returned) need to perform hourly agg on this
 
