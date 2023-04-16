@@ -12,7 +12,7 @@ case class PatientStatic(SUBJECT_ID: String, HADM_ID: String, DOB: String, GENDE
                          ICUDur: BigInteger, visit: BigInteger)
 
 case class Events(SUBJECT_ID: String, HADM_ID: String,ICUSTAY_ID: String,  CHARTTIME: Timestamp,
-                       ITEMID: String, VALUE: Double, VALUEUOM: String)
+                       ITEMID: String, VALUE: Option[Double], VALUEUOM: String)
 
 case class Items(ITEMID: String, LABEL: String, DBSOURCE: String, LINKSTO: String, CATEGORY: String, UNITNAME: String)
 

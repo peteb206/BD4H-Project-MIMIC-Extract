@@ -7,9 +7,11 @@ import org.apache.spark.sql.functions.to_timestamp
 
 object dataload {
 
-  def get_patients_static_variables(spark: SparkSession, age: Int = 15, visit: Int = 1,
+  val spark = SparkSession.builder.getOrCreate()
+  import spark.implicits._
+
+  def get_patients_static_variables(age: Int = 15, visit: Int = 1,
                                     icuDurMin: Int = 12, icuDurMax: Int = 10 * 24): RDD[PatientStatic] = {
-    import spark.implicits._
 
     //Function to get patients static data
     //See query patient_static
@@ -58,6 +60,7 @@ object dataload {
 
     val patient_stat: RDD[PatientStatic] = spark.read.format("bigquery")
       .option("table", "bdh6250-380417.MIMIC_Extract.patients_static")
+      .option("readDataFormat", "AVRO")
       .load()
       .filter(s"(ICUDur BETWEEN $icuDurMin and $icuDurMax) AND (visit = $visit) AND (age >= $age)")
       .withColumn("ADMITTIME", to_timestamp($"ADMITTIME"))
@@ -76,9 +79,7 @@ object dataload {
     patient_stat
   }
 
-  def get_icu_events(spark: SparkSession): (RDD[Events], RDD[Events]) = {
-    import spark.implicits._
-
+  def get_icu_events(): (RDD[Events], RDD[Events]) = {
     //queries used
     //query icustay_chartevents, table icustay_charevents
     //query icustay_labevents, table icustay_labevents
@@ -99,9 +100,11 @@ object dataload {
 
     val icu_chart: RDD[Events] = spark.read.format("bigquery")
       .option("table", "bdh6250-380417.MIMIC_Extract.icustay_chartevents")
+      .option("readDataFormat", "AVRO")
       .load()
       .withColumn("CHARTTIME", to_timestamp($"CHARTTIME"))
       .withColumn("VALUE", $"VALUE".cast("Double"))
+//      .limit(100000) //limit size to run locally
       .as[Events]
       .rdd
 
@@ -123,9 +126,11 @@ object dataload {
 
     val icu_lab: RDD[Events] = spark.read.format("bigquery")
       .option("table", "bdh6250-380417.MIMIC_Extract.icustay_labevents")
+      .option("readDataFormat", "AVRO")
       .load()
       .withColumn("CHARTTIME", to_timestamp($"CHARTTIME"))
       .withColumn("VALUE", $"VALUE".cast("Double"))
+//      .limit(100000)
       .as[Events]
       .rdd
 
@@ -134,9 +139,7 @@ object dataload {
     (icu_chart, icu_lab)
   }
 
-  def get_items(spark: SparkSession): RDD[Items] = {
-
-    import spark.implicits._
+  def get_items(): RDD[Items] = {
     //items, query items
     //Item name table
 

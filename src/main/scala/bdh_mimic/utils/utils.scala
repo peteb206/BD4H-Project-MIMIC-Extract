@@ -7,14 +7,18 @@ import org.apache.spark.broadcast.Broadcast
 
 object utils {
 
-  def outlier_removal(spark: SparkSession, items: RDD[Items], icu_chart: RDD[Events]
+  val spark = SparkSession.builder.getOrCreate()
+  import spark.implicits._
+
+  def outlier_removal(items: RDD[Items], icu_chart: RDD[Events]
                      ): RDD[Events] = {
+
     //Fnc to remove and impute outliers
-    import spark.implicits._
     val sc = spark.sparkContext
 
     //https://www.nature.com/articles/sdata201635 Nice Chart of MIMIC Data
 
+//    def read_filter()
     //See variable_ranges.csv in resource_data
     //Note in paper not clear if outlier detections is from source paper or code base csv
     //It appears to be missing values in the dataset from GCP physionet compaired to past research
@@ -43,26 +47,36 @@ object utils {
 
     val valid_ranges = outlier_ranges_filter.map( x => (items_map.get(x.LEVEL2).get, x.VALID_LOW, x.VALID_HIGH, x.IMPUTE))
 
+//    val sqlrange = valid_ranges.toDF()
+//    sqlrange.show()
+
     val range_broadcast = sc.broadcast(valid_ranges.collect())
 
     val result = icu_chart.map { event =>
       val valid_range = range_broadcast.value.filter { case (id, _, _, _) => id == event.ITEMID }
       if (valid_range.nonEmpty) {
         val (_, vallow, valhigh, impute) = valid_range.head
-        if (event.VALUE < vallow || event.VALUE > valhigh) {
-          event.copy(VALUE = impute)
-        } else {
-          event
+        if (event.VALUE.getOrElse(Double.NaN) < vallow || event.VALUE.getOrElse(Double.NaN) > valhigh) {
+          event.copy(VALUE = Some(impute))
+        } else if (event.VALUE.fold(false)(_.isNaN)) {
+          event.copy(VALUE = Some(impute))
         }
-      } else {
+        else {
+          event
+        } }
+//      } else if (event.VALUE.fold(false)(_.isNaN)) {
+//        event.copy(VALUE = 0.0)
+//      }
+      else {
         event
       }
     }
 
-    //Errors with null when collecting
-//    icu_chart.filter(x => x.VALUE != null).filter(x => x.ITEMID == 226707 && x.VALUE > 240).take(1).foreach(println)
-//
-//    result.filter(x => x.VALUE != null).filter(x => x.ITEMID == 226707 && x.VALUE == 170).take(1).foreach(println)
+    val test_res = result.filter(x => x.ITEMID == "227429" && x.VALUE.getOrElse(0.0) >= 20.85)
+
+    val testerdf = test_res.toDF()
+
+    testerdf.show()
 
     result
   }
