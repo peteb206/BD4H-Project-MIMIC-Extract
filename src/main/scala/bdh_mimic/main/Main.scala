@@ -56,7 +56,17 @@ object Main {
 //    testdf.show()
 
     //So far have chart data loaded (item and lab dataloaded as well just not returned) need to perform hourly agg on this
+    icu_chart_impute.cache()
+    val hourly_agg = utils.hourly_agg(icu_chart_impute)
+    hourly_agg.cache()
 
+    // println("icu_chart_impute count: " + icu_chart_impute.count())
+    // Expecting "icu_chart_impute count: 145199077"
+
+    // println("hourly_agg count: " + hourly_agg.count())
+    // Expecting "hourly_agg count: 99373881"
+
+    hourly_agg.take(20).foreach(println)
   }
 
 }

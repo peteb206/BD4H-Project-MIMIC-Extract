@@ -1,9 +1,10 @@
 package bdh_mimic.utils
 
-import bdh_mimic.model.{Events, Items, PatientStatic, ValRange}
+import bdh_mimic.model.{Events, HourlyAgg, Items, PatientStatic, ValRange}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.sql.functions.{avg, count, sum, to_timestamp, window}
 
 object utils {
 
@@ -81,4 +82,16 @@ object utils {
     result
   }
 
+  def hourly_agg(icu_chart: RDD[Events]): RDD[HourlyAgg] = {
+    icu_chart
+      .toDF()
+      .na.drop() // Don't include null values in aggregation
+      .groupBy($"SUBJECT_ID", $"HADM_ID", $"ICUSTAY_ID", $"ITEMID", $"VALUEUOM",
+        window($"CHARTTIME", "1 hour"))
+      .agg(sum($"VALUE") as "VALUE_SUM", avg($"VALUE") as "VALUE_AVG", count($"VALUE") as "VALUE_COUNT")
+      .withColumn("CHARTTIME_START", to_timestamp($"window.start"))
+      .withColumn("CHARTTIME_END", to_timestamp($"window.end"))
+      .as[HourlyAgg]
+      .rdd
+  }
 }

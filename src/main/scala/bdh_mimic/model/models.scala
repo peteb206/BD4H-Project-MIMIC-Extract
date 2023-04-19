@@ -20,3 +20,7 @@ case class ValRange(LEVEL2: String, OUTLIER_LOW: Double, VALID_LOW: Double, IMPU
                     VALID_HIGH: Double, OUTLIER_HIGH: Double)
 
 //case class ItemMap(ITEMID: String, VALID_LOW: Float, VALID_HIGH: Float, IMPUTE: Float)
+
+case class HourlyAgg(SUBJECT_ID: String, HADM_ID: String,ICUSTAY_ID: String, ITEMID: String, VALUEUOM: String,
+                     CHARTTIME_START: Timestamp, CHARTTIME_END: Timestamp, VALUE_SUM: Double, VALUE_AVG: Double,
+                     VALUE_COUNT: Double)
