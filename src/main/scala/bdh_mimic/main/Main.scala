@@ -15,7 +15,7 @@ object Main {
 
     //Set app for .jar
     val spark = SparkSession.builder
-      .appName("simp")
+      .appName("MIMIC3")
       .config("spark.master", "local")
       .getOrCreate()
     import spark.implicits._
