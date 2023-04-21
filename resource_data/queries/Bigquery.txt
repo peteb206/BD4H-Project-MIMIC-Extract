@@ -1,0 +1,267 @@
+BigQuery Queries for physionet-data data
+
+-Codes table (ICD-9 codes):
+WITH ccs_data AS (SELECT ccs.ccs_matched_id, ccs.icd9_code from physionet-data.mimiciii_derived.ccs_dx ccs)
+
+SELECT
+icu_stay.ICUSTAY_ID
+,diag.SUBJECT_ID
+,diag.HADM_ID
+,array_agg(diag.ICD9_CODE ORDER BY seq_num ASC) AS icd9_codes
+FROM physionet-data.mimiciii_clinical.diagnoses_icd diag
+LEFT OUTER JOIN ccs_data cdata
+    ON cdata.icd9_code = diag.ICD9_CODE
+INNER JOIN physionet-data.mimiciii_clinical.icustays icu_stay
+    ON icu_stay.HADM_ID = diag.HADM_ID AND icu_stay.SUBJECT_ID = diag.SUBJECT_ID
+WHERE
+-- diag.HADM_ID IN ('{hadm_id}')
+seq_num IS NOT NULL
+GROUP BY icu_stay.ICUSTAY_ID, diag.SUBJECT_ID, diag.HADM_ID
+
+-Admissions (ICU Admissions for patients with Duration and Visit Number):
+SELECT ROW_ID
+,SUBJECT_ID
+,HADM_ID
+,ETHNICITY
+,DIAGNOSIS
+,CAST(ADMITTIME as DATE) as ADMITTIME
+,TIMESTAMP_DIFF(DISCHTIME,ADMITTIME, HOUR) as ICUDur
+,DENSE_RANK() OVER(PARTITION BY SUBJECT_ID ORDER BY ADMITTIME) as visit_id
+FROM `physionet-data.mimiciii_clinical.admissions`
+
+-Items (Map Item ID to Names):
+SELECT ITEMID
+,LABEL
+,DBSOURCE
+,LINKSTO
+,CATEGORY
+,UNITNAME
+ FROM `physionet-data.mimiciii_clinical.d_items`
+
+-ICU Chart Events with Unit Conversion (creates patient static table):
+SELECT
+chartev.SUBJECT_ID
+,icu.HADM_ID
+,chartev.ICUSTAY_ID
+,CAST(chartev.CHARTTIME as DATETIME) as CHARTTIME
+,chartev.ITEMID
+,
+  CASE
+  -- ounces to kg
+  WHEN LOWER(chartev.VALUEUOM) LIKE "%oz%"
+    THEN CAST(CAST(chartev.VALUE AS BIGNUMERIC) / 16 * 0.45359237 AS STRING)
+  -- pounds to kg
+  WHEN LOWER(chartev.VALUEUOM) LIKE "%lbs%"
+    THEN CAST(CAST(chartev.VALUE AS BIGNUMERIC) * 0.45359237 AS STRING)
+  -- Fahrenheit to Celsius
+  WHEN LOWER(chartev.VALUEUOM) LIKE "%deg%f%" OR LOWER(chartev.VALUEUOM) = "?f"
+    THEN CAST(ROUND((CAST(chartev.VALUE AS BIGNUMERIC) - 32) * 5 / 9, 15) AS STRING)
+  -- inches to cm
+  WHEN LOWER(chartev.VALUEUOM) = "in" OR LOWER(chartev.VALUEUOM) LIKE "%inch%"
+    THEN CAST(CAST(chartev.VALUE AS BIGNUMERIC) * 2.54 AS STRING)
+  ELSE chartev.VALUE END AS
+  VALUE
+,
+  CASE
+  -- ounces to kg
+  WHEN LOWER(chartev.VALUEUOM) LIKE "%oz%" THEN "kg"
+  -- pounds to kg
+  WHEN LOWER(chartev.VALUEUOM) LIKE "%lbs%" THEN "kg"
+  -- Fahrenheit to Celsius
+  WHEN LOWER(chartev.VALUEUOM) LIKE "%deg%f%" OR LOWER(chartev.VALUEUOM) = "?f" THEN "Deg C"
+  -- inches to cm
+  WHEN LOWER(chartev.VALUEUOM) = "in" OR LOWER(chartev.VALUEUOM) LIKE "%inch%" THEN "cm"
+  ELSE chartev.VALUEUOM END AS
+  VALUEUOM
+ FROM `physionet-data.mimiciii_clinical.icustays` icu
+ INNER JOIN `physionet-data.mimiciii_clinical.chartevents` chartev ON icu.ICUSTAY_ID = chartev.ICUSTAY_ID
+ WHERE chartev.CHARTTIME BETWEEN icu.INTIME and icu.OUTTIME
+AND chartev.ERROR is distinct from 1
+AND chartev.VALUENUM is not NULL
+
+-Notes
+SELECT
+noteev.SUBJECT_ID
+,noteev.HADM_ID
+,icu.ICUSTAY_ID
+,noteev.CHARTDATE
+,noteev.CHARTTIME
+,noteev.CATEGORY
+,noteev.CATEGORY
+,noteev.DESCRIPTION
+,noteev.DESCRIPTION
+,noteev.TEXT
+ FROM `physionet-data.mimiciii_notes.noteevents` noteev
+INNER JOIN `physionet-data.mimiciii_clinical.icustays`  icu ON noteev.HADM_ID = icu.HADM_ID
+WHERE noteev.ISERROR IS NULL
+AND (noteev.CHARTDATE <= icu.INTIME OR noteev.CHARTTIME <= icu.OUTTIME)
+
+-Lab Events with Unit Conversion:
+SELECT DISTINCT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,icu.ICUSTAY_ID
+,CAST(labev.CHARTTIME as DATETIME) as CHARTTIME
+,labev.ITEMID
+,
+  CASE
+  -- ounces to kg
+  WHEN LOWER(labev.VALUEUOM) LIKE "%oz%"
+    THEN CAST(CAST(labev.VALUE AS BIGNUMERIC) / 16 * 0.45359237 AS STRING)
+  -- pounds to kg
+  WHEN LOWER(labev.VALUEUOM) LIKE "%lbs%"
+    THEN CAST(CAST(labev.VALUE AS BIGNUMERIC) * 0.45359237 AS STRING)
+  -- Fahrenheit to Celsius
+  WHEN LOWER(labev.VALUEUOM) LIKE "%deg%f%" OR LOWER(labev.VALUEUOM) = "?f"
+    THEN CAST(ROUND((CAST(labev.VALUE AS BIGNUMERIC) - 32) * 5 / 9, 15) AS STRING)
+  -- inches to cm
+  WHEN LOWER(labev.VALUEUOM) = "in" OR LOWER(labev.VALUEUOM) LIKE "%inch%"
+    THEN CAST(CAST(labev.VALUE AS BIGNUMERIC) * 2.54 AS STRING)
+  ELSE labev.VALUE END AS
+  VALUE
+,
+  CASE
+  -- ounces to kg
+  WHEN LOWER(labev.VALUEUOM) LIKE "%oz%" THEN "kg"
+  -- pounds to kg
+  WHEN LOWER(labev.VALUEUOM) LIKE "%lbs%" THEN "kg"
+  -- Fahrenheit to Celsius
+  WHEN LOWER(labev.VALUEUOM) LIKE "%deg%f%" OR LOWER(labev.VALUEUOM) = "?f" THEN "Deg C"
+  -- inches to cm
+  WHEN LOWER(labev.VALUEUOM) = "in" OR LOWER(labev.VALUEUOM) LIKE "%inch%" THEN "cm"
+  ELSE labev.VALUEUOM END AS
+  VALUEUOM
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_clinical.labevents` labev ON icu.HADM_ID = labev.HADM_ID
+WHERE labev.CHARTTIME BETWEEN (icu.INTIME - interval '6' hour) and icu.OUTTIME
+AND labev.VALUENUM > 0
+
+-ICU Adenosine Durations:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.adenosine_durations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Dobutamine Durations:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.dobutamine_durations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Dopamine Durations:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.dopamine_durations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Epinephrine Durations:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.epinephrine_durations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Milrinone Duration
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.milrinone_durations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Norepinephrine Duration:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.norepinephrine_durations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Phenylephrine Duration:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.phenylephrine_durations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Vasopressin Duration:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.vasopressin_durations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Vasopressor Duration:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,v.icustay_id
+,v.vasonum
+,v.starttime
+,v.endtime
+FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.vasopressordurations` v ON icu.ICUSTAY_ID = v.icustay_id
+WHERE CAST(v.starttime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+AND CAST(v.endtime as Datetime) BETWEEN icu.INTIME and icu.OUTTIME
+
+-ICU Ventilation Duration:
+SELECT
+icu.SUBJECT_ID
+,icu.HADM_ID
+,vent.icustay_id
+,vent.starttime
+,vent.endtime
+ FROM `physionet-data.mimiciii_clinical.icustays` icu
+INNER JOIN `physionet-data.mimiciii_derived.ventilation_durations` vent ON icu.ICUSTAY_ID = vent.icustay_id
+WHERE
+vent.starttime BETWEEN icu.INTIME and icu.OUTTIME
+AND vent.endtime BETWEEN icu.INTIME and icu.OUTTIME

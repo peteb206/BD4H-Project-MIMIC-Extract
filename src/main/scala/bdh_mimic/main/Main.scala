@@ -9,16 +9,15 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.to_timestamp
 
-//Plan create jar files from project and load into gcp dataproc to run job and write table out to bigquery
-//gcp https://www.youtube.com/watch?v=XriOHFKrzLM
-//create jar with intellij https://sqlrelease.com/create-jar-in-intellij-idea-for-maven-based-scala-spark-project
-
 object Main {
 
   def main(args: Array[String]) {
 
     //Set app for .jar
-    val spark = SparkSession.builder.appName("simp").config("spark.master", "local").getOrCreate()
+    val spark = SparkSession.builder
+      .appName("MIMIC3")
+      .config("spark.master", "local")
+      .getOrCreate()
     import spark.implicits._
 
     //Tutorial Run
@@ -26,24 +25,50 @@ object Main {
 //    result_tut.take(1).foreach(println)
 
     //Get Static Patient Data
-    val patients_static: RDD[PatientStatic] = dataload.get_patients_static_variables(spark)
-
-    patients_static.take(1).foreach(println)
-
+    val patients_static: RDD[PatientStatic] = dataload.get_patients_static_variables(age = 15)
+//
+//    patients_static.take(1).foreach(println)
+//
 //    patients_static.cache()
-
-    //Get Chart Events Data
-    val (icu_chart, icu_lab, items) = dataload.get_icu_events(spark)
-
+//
+//    Get Chart Events Data
+    val (icu_chart, icu_lab) = dataload.get_icu_events()
+//
 //    icu_chart.take(1).foreach(println)
 //
 //    icu_lab.take(1).foreach(println)
-//
-//    items.take(1).foreach(println)
 
-    val new_test = utils.unit_conversion(icu_chart, items)
+    icu_chart.cache()
+
+    //Remove Outliers
+    val items = dataload.get_items()
+
+    items.cache()
+
+    val icu_chart_impute = utils.outlier_removal(items, icu_chart)
+
+//    val testdf = icu_chart_impute.toDF().filter("ITEMID = 226707")
+
+//    testdf.show()
 
     //So far have chart data loaded (item and lab dataloaded as well just not returned) need to perform hourly agg on this
+    icu_chart_impute.cache()
+    val hourly_agg = utils.hourly_agg(icu_chart_impute)
+    hourly_agg.cache()
+
+    // println("icu_chart_impute count: " + icu_chart_impute.count())
+    // Expecting "icu_chart_impute count: 145199077"
+
+    // println("hourly_agg count: " + hourly_agg.count())
+    // Expecting "hourly_agg count: 99373881"
+
+//    hourly_agg.take(20).foreach(println)
+
+    val int_test = utils.interventions(("icu_vasopressor_dur"))
+
+    int_test.take(1).foreach(println)
+
+    utils.to_csv(int_test.toDF(),"icu_vasopressor_dur.csv")
 
   }
 
