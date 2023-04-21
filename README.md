@@ -12,11 +12,11 @@ Marzyeh Ghassemi, Michael C. Hughes, Tristan Naumann and Git Repo: https://githu
 
 Purpose is to use original work as bases for easier downstream manipulation of MIMIC-III datasets using Physionet BigQuery Database in Scala/Spark
 
-Original MIMIC Extract Pipeline
+### Original MIMIC Extract Pipeline
 
 <img src="https://github.com/peteb206/BD4H-Project-MIMIC-Extract/blob/main/resource_data/MIMICExtractPipeline.png" width="500" height="280">
 
-Simplified Updated Physionet Dataset
+### Simplified Updated Physionet Dataset
 
 <img src="https://github.com/peteb206/BD4H-Project-MIMIC-Extract/blob/main/resource_data/MIMICExtractUpdate.png" width="500" height="280">
 
