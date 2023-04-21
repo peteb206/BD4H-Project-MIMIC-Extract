@@ -1,8 +1,9 @@
 package bdh_mimic.utils
 
-import bdh_mimic.model.{Events, HourlyAgg, Items, PatientStatic, ValRange}
+import bdh_mimic.model.{Events, HourlyAgg, Items, PatientStatic, ValRange, Intervention}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.functions.{avg, count, sum, to_timestamp, window}
 
@@ -83,6 +84,7 @@ object utils {
   }
 
   def hourly_agg(icu_chart: RDD[Events]): RDD[HourlyAgg] = {
+    //this function caculates hourly agg
     icu_chart
       .toDF()
       .na.drop() // Don't include null values in aggregation
@@ -94,4 +96,56 @@ object utils {
       .as[HourlyAgg]
       .rdd
   }
+
+  def interventions(table: String): RDD[Intervention] = {
+    //this function creates intervention datasets
+      if (table != "icu_ventilator_dur") {
+          val df = spark.read.format("bigquery")
+            .option("table", s"bdh6250-380417.MIMIC_Extract.$table")
+            .option("readDataFormat", "AVRO")
+            .load()
+            .na.drop()
+            .withColumn("starttime", to_timestamp($"starttime"))
+            .withColumn("endtime", to_timestamp($"endtime"))
+
+          val df1 = df.groupBy($"SUBJECT_ID", $"HADM_ID", $"icustay_id",
+            window($"starttime", "1 hour"))
+            .agg(count($"vasonum") as "intervention_count")
+            .withColumn("windowstart", to_timestamp($"window.start"))
+            .withColumn("windowend", to_timestamp($"window.end"))
+
+          val df_final = df1.select("SUBJECT_ID","HADM_ID","icustay_id","windowstart", "windowend", "intervention_count")
+
+//          df_final.show(5)
+
+        df_final.as[Intervention].rdd
+      }
+      else {
+        val df = spark.read.format("bigquery")
+          .option("table", "bdh6250-380417.MIMIC_Extract.icu_ventilator_dur")
+          .option("readDataFormat", "AVRO")
+          .load()
+          .na.drop()
+          .withColumn("starttime", to_timestamp($"starttime"))
+          .withColumn("endtime", to_timestamp($"endtime"))
+
+        val df1 = df.groupBy($"SUBJECT_ID", $"HADM_ID", $"icustay_id",
+          window($"starttime", "1 hour"))
+          .agg(count($"ventnum") as "intervention_count")
+          .withColumn("windowstart", to_timestamp($"window.start"))
+          .withColumn("windowend", to_timestamp($"window.end"))
+
+        val df_final = df1.select("SUBJECT_ID", "HADM_ID", "icustay_id", "windowstart", "windowend", "intervention_count")
+
+        //          df_final.show(5)
+
+        df_final.as[Intervention].rdd
+      }
+
+  }
+  def to_csv(df: DataFrame, name: String): Unit = {
+    //write an output to csv
+    df.write.option("header",true).csv(s"resource_data/outputs/$name")
+  }
+
 }

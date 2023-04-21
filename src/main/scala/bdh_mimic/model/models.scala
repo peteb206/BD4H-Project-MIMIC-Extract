@@ -24,3 +24,6 @@ case class ValRange(LEVEL2: String, OUTLIER_LOW: Double, VALID_LOW: Double, IMPU
 case class HourlyAgg(SUBJECT_ID: String, HADM_ID: String,ICUSTAY_ID: String, ITEMID: String, VALUEUOM: String,
                      CHARTTIME_START: Timestamp, CHARTTIME_END: Timestamp, VALUE_SUM: Double, VALUE_AVG: Double,
                      VALUE_COUNT: Double)
+
+case class Intervention(SUBJECT_ID: String, HADM_ID: String,ICUSTAY_ID: String,
+                        windowstart: Timestamp, windowend: Timestamp, intervention_count: BigInt)

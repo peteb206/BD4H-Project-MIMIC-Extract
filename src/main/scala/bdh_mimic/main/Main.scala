@@ -9,10 +9,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.to_timestamp
 
-//Plan create jar files from project and load into gcp dataproc to run job and write table out to bigquery
-//gcp https://www.youtube.com/watch?v=XriOHFKrzLM
-//create jar with intellij https://sqlrelease.com/create-jar-in-intellij-idea-for-maven-based-scala-spark-project
-
 object Main {
 
   def main(args: Array[String]) {
@@ -50,7 +46,7 @@ object Main {
     items.cache()
 
     val icu_chart_impute = utils.outlier_removal(items, icu_chart)
-//
+
 //    val testdf = icu_chart_impute.toDF().filter("ITEMID = 226707")
 
 //    testdf.show()
@@ -66,7 +62,14 @@ object Main {
     // println("hourly_agg count: " + hourly_agg.count())
     // Expecting "hourly_agg count: 99373881"
 
-    hourly_agg.take(20).foreach(println)
+//    hourly_agg.take(20).foreach(println)
+
+    val int_test = utils.interventions(("icu_vasopressor_dur"))
+
+    int_test.take(1).foreach(println)
+
+    utils.to_csv(int_test.toDF(),"icu_vasopressor_dur.csv")
+
   }
 
 }
