@@ -7,7 +7,7 @@ hs_err_pid*
 /.bsp
 /.idea
 *.cache
-**/.DS_Store
+*.DS_Store
 
 ##https://github.com/github/gitignore/blob/main/Global/SBT.gitignore
 #dist/*
